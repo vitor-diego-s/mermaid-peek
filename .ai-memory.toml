@@ -1,0 +1,7 @@
+# ai-memory marker: this personal tool lives in the mblivre workspace (server on z-gaming);
+# one repo = one project (mermaid-peek).
+workspace = "mblivre"
+project_strategy = "repo-root"
+
+[recall]
+default_global = "true"

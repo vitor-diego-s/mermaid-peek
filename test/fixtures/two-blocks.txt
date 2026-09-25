@@ -1,0 +1,20 @@
+First diagram:
+
+  mermaid
+      graph TD
+          A --> B
+          B --> C
+
+Between the two, the word graph appears in prose and so does
+sequenceDiagram but neither starts a block on its own line with a body.
+
+sequenceDiagram
+
+Second diagram:
+
+  mermaid
+      erDiagram
+          USER ||--o{ SESSION : has
+          SESSION }o--|| SPACE : joins
+
+Done.

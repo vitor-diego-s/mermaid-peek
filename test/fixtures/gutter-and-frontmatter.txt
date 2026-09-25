@@ -1,0 +1,13 @@
+│ Resultado da análise
+│
+│ ---
+│ title: Estados da sessão
+│ ---
+│ stateDiagram-v2
+│     [*] --> Idle
+│     Idle --> Connecting: join
+│     Connecting --> Live: ws ok
+│     Live --> Idle: leave
+│     Live --> [*]
+│
+│ Fim.

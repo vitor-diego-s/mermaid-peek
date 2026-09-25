@@ -1,0 +1,7 @@
+sequenceDiagram
+    participant App
+    participant IdP as id.mblivre.dev
+    App->>IdP: /oauth2/auth
+    IdP-->>App: code
+    App->>IdP: /oauth2/token
+    IdP-->>App: access_token

@@ -1,0 +1,19 @@
+flowchart LR
+    subgraph mobile[valete-mobile]
+        UI[Telas: Espaços ao vivo · Sala · Criar · Mini-player]
+        S[SpaceSessionModel<br/>Riverpod keepAlive]
+        API[spaces_api<br/>Chopper + Bearer]
+        WS[socket_io_client<br/>/spaces + ws-token]
+        LK[livekit_client 2.13<br/>áudio WebRTC]
+    end
+    subgraph backend
+        SA[valete-spaces-api<br/>spaces-v2.mblivre.dev]
+        H[Hydra JWKS]
+        LC[LiveKit Cloud]
+    end
+    UI --> S
+    S --> API --> SA
+    S --> WS --> SA
+    S --> LK --> LC
+    SA -. valida Bearer .-> H
+    SA -. token 600s .-> LK

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mermaid Peek</title>
+<style>
+:root { color-scheme: dark; --bg:#17191e; --panel:#22262d; --fg:#e5e9ef; --border:#404754; }
+@media(prefers-color-scheme:light) { :root { color-scheme:light; --bg:#fff; --panel:#f0f2f5; --fg:#202630; --border:#c8ced7; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:14px system-ui,sans-serif; }
+header { height:56px; padding:0 16px; display:flex; align-items:center; gap:16px; border-bottom:1px solid var(--border); }
+#meta { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+button { color:inherit; background:var(--panel); border:1px solid var(--border); border-radius:5px; padding:8px; cursor:pointer; }
+main { display:flex; height:calc(100dvh - 56px); }
+nav { width:180px; flex-shrink:0; padding:16px; overflow:auto; border-right:1px solid var(--border); }
+nav button { width:100%; margin-bottom:8px; text-align:left; overflow-wrap:anywhere; }
+nav button[aria-current=true] { outline:2px solid #799dff; }
+#viewport { position:relative; flex:1; overflow:hidden; touch-action:none; cursor:grab; }
+#drawing { position:absolute; left:16px; top:16px; transform-origin:0 0; }
+#drawing svg { max-width:none !important; }
+#errors { position:absolute; inset:16px; overflow:auto; cursor:auto; }
+pre { white-space:pre-wrap; overflow-wrap:anywhere; }
+#hint { position:absolute; bottom:16px; right:16px; opacity:.65; pointer-events:none; }
+#render-stage { position:fixed; left:-100000px; top:0; }
+</style>
+<script src="/mermaid.min.js"></script>
+</head>
+<body>
+<header><strong>Mermaid Peek</strong><span id="meta">Waiting for a diagram</span><button id="copy">Copy source</button></header>
+<main><nav id="history" aria-label="Diagram history"></nav><section id="viewport" aria-label="Diagram viewer">
+<div id="drawing"></div><div id="errors" hidden></div><span id="hint">drag · wheel · f fit · 0 reset · [ ] history · c copy</span>
+</section></main>
+<div id="render-stage"></div>
+<script>
+const media = matchMedia('(prefers-color-scheme: light)');
+function configure() { mermaid.initialize({ startOnLoad:false, securityLevel:'strict', theme:media.matches ? 'default' : 'dark' }); }
+configure();
+const history = document.querySelector('#history'), meta = document.querySelector('#meta');
+const viewport = document.querySelector('#viewport'), drawing = document.querySelector('#drawing');
+const errors = document.querySelector('#errors'), stage = document.querySelector('#render-stage');
+let diagrams = [], selected = null, serial = 0, queue = Promise.resolve();
+let x = 0, y = 0, scale = 1;
+function transform() { drawing.style.transform = `translate(${x}px,${y}px) scale(${scale})`; }
+function reset() { x = y = 0; scale = 1; transform(); }
+function fit() {
+  const svg = drawing.querySelector('svg');
+  if (!svg) return;
+  const w = drawing.offsetWidth, h = drawing.offsetHeight;
+  scale = Math.min((viewport.clientWidth - 32) / w, (viewport.clientHeight - 32) / h, 2);
+  if (!Number.isFinite(scale) || scale <= 0) scale = 1;
+  x = (viewport.clientWidth - 32 - w * scale) / 2;
+  y = (viewport.clientHeight - 32 - h * scale) / 2;
+  transform();
+}
+function sidebar() {
+  history.replaceChildren();
+  [...diagrams].reverse().forEach(d => {
+    const button = document.createElement('button');
+    button.textContent = `${d.type || 'diagram'} · ${d.paneId || ''}\n${new Date(d.receivedAt).toLocaleTimeString()}`;
+    button.setAttribute('aria-current', String(d.id === selected?.id));
+    button.onclick = () => show(d);
+    history.append(button);
+  });
+}
+function show(d) {
+  if (!d) return;
+  selected = d;
+  const version = ++serial;
+  meta.textContent = `${d.type || 'diagram'} · ${d.paneId || ''} · ${new Date(d.receivedAt).toLocaleTimeString()}`;
+  sidebar();
+  queue = queue.then(async () => {
+    if (version !== serial) return;
+    drawing.replaceChildren(); errors.replaceChildren(); errors.hidden = true;
+    try {
+      const { svg } = await mermaid.render(`diagram-${version}`, d.source, stage);
+      if (version !== serial) return;
+      drawing.innerHTML = svg;
+      const element = drawing.querySelector('svg');
+      const box = element?.viewBox.baseVal;
+      if (box?.width && box?.height) { element.setAttribute('width', box.width); element.setAttribute('height', box.height); }
+      fit();
+    } catch (error) {
+      if (version !== serial) return;
+      errors.hidden = false;
+      const message = document.createElement('p'), source = document.createElement('pre');
+      message.textContent = String(error); source.textContent = d.source;
+      errors.append(message, source);
+    } finally { stage.replaceChildren(); }
+  });
+}
+const events = new EventSource('/events');
+events.addEventListener('history', event => {
+  diagrams = JSON.parse(event.data).slice(-20);
+  const current = diagrams.find(d => d.id === selected?.id) ?? diagrams.at(-1);
+  if (current) show(current);
+  else {
+    selected = null; ++serial; sidebar();
+    drawing.replaceChildren(); errors.replaceChildren(); errors.hidden = true;
+    meta.textContent = 'Waiting for a diagram'; reset();
+  }
+});
+events.addEventListener('diagram', event => {
+  const d = JSON.parse(event.data);
+  diagrams = [...diagrams.filter(old => old.id !== d.id), d].slice(-20); show(d);
+});
+async function copy() {
+  if (!selected) return;
+  try { await navigator.clipboard.writeText(selected.source); }
+  catch (error) { meta.textContent = `Copy failed: ${error}`; }
+}
+document.querySelector('#copy').onclick = copy;
+let drag;
+viewport.onpointerdown = event => {
+  if (event.button !== 0 || !errors.hidden) return;
+  drag = { px:event.clientX, py:event.clientY, x, y };
+  viewport.setPointerCapture(event.pointerId);
+};
+viewport.onpointermove = event => {
+  if (!drag) return;
+  x = drag.x + event.clientX - drag.px; y = drag.y + event.clientY - drag.py; transform();
+};
+viewport.onpointerup = viewport.onpointercancel = () => { drag = null; };
+viewport.addEventListener('wheel', event => {
+  if (!errors.hidden) return;
+  event.preventDefault();
+  const rect = viewport.getBoundingClientRect(), px = event.clientX - rect.left - 16, py = event.clientY - rect.top - 16;
+  const next = Math.max(.05, Math.min(10, scale * Math.exp(-event.deltaY * .001)));
+  x = px - (px - x) * next / scale; y = py - (py - y) * next / scale;
+  scale = next; transform();
+}, { passive:false });
+document.onkeydown = event => {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.key === 'f') fit();
+  else if (event.key === '0') reset();
+  else if (event.key === 'c') void copy();
+  else if (event.key === '[' || event.key === ']') {
+    const i = diagrams.findIndex(d => d.id === selected?.id);
+    show(diagrams[i + (event.key === '[' ? -1 : 1)]);
+  }
+};
+media.addEventListener('change', () => { configure(); show(selected); });
+</script>
+</body>
+</html>

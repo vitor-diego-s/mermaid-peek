@@ -1,0 +1,25 @@
+{
+  "name": "mermaid-peek",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Alt+click a mermaid diagram printed in a tmux pane and see it rendered in a viewer window aside the terminal",
+  "type": "module",
+  "bin": {
+    "mermaid-peek": "bin/mermaid-peek"
+  },
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "serve": "node --experimental-strip-types --no-warnings src/cli.ts serve"
+  },
+  "dependencies": {
+    "mermaid": "11.17.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,6 @@
+#!/bin/sh
+script=$0
+if command -v readlink >/dev/null 2>&1; then
+  resolved=$(readlink -f "$script" 2>/dev/null) && script=$resolved
+fi
+exec node --experimental-strip-types --no-warnings "$(dirname "$script")/../src/cli.ts" "$@"
