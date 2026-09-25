@@ -18,6 +18,11 @@ function anchor(content: string): string | undefined {
   if (['graph', 'flowchart'].includes(type) && !/^(TB|TD|BT|RL|LR)$/.test(args[0] ?? '')) return;
   return type;
 }
+function statement(content: string): boolean {
+  return !content.endsWith('.') && (
+    /-->|---|-\.->|==>|->>|-->>|-\.-|:|\[|\(|\{/.test(content) ||
+    /^(?:(?:subgraph|end|participant|actor|note|loop|alt|else|opt|par|critical|break|rect|state|class|click|style|classDef|linkStyle|direction|section|title)\b|%%|\[\*\])/.test(content));
+}
 export function findBlocks(lines: string[]): Block[] {
   const parsed = lines.map(split);
   const blocks: Block[] = [];
@@ -34,19 +39,24 @@ export function findBlocks(lines: string[]): Block[] {
     }
     const fenced = start > 0 && /^```mermaid(?:\s.*)?$/.test(parsed[start - 1].content);
     let end = i;
+    let flat = true;
+    const tableLine = (index: number) => !parsed[i].gutter && /^\s*[\u2500-\u257f|]/u.test(lines[index]);
     for (let j = i + 1; j < lines.length; j++) {
       const part = parsed[j];
+      if (tableLine(j)) break;
       if (part.content === '```' || part.content === 'mermaid') break;
       if (!part.content || /^[│┃⎿⏺>|]$/.test(part.content)) {
         let next = j + 1;
-        while (next < lines.length && !parsed[next].content) next++;
-        if (next === lines.length || parsed[next].width < width ||
-            (!fenced && (width === 0 || parsed[i].gutter) && parsed[next].width === width) ||
+        while (next < lines.length && !parsed[next].content && !tableLine(next)) next++;
+        if (next === lines.length || tableLine(next) || parsed[next].width < width ||
+            (!fenced && parsed[next].width === width &&
+              (width === 0 || parsed[i].gutter || !flat || !statement(parsed[next].content))) ||
             (parsed[i].column && !parsed[next].gutter) ||
             ['```', 'mermaid'].includes(parsed[next].content)) break;
         continue;
       }
       if (part.width < width || (parsed[i].column && !part.gutter)) break;
+      flat &&= part.width === width;
       end = j;
     }
     if (end === i) continue;

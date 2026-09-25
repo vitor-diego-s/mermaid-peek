@@ -1,6 +1,8 @@
 import { execFile } from 'node:child_process';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import * as fs from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { runInNewContext } from 'node:vm';
@@ -16,7 +18,7 @@ const code = stripTypeScriptTypes(readFileSync(url, 'utf8'))
   .replace(/^import .*;\n/gm, '')
   .replaceAll('import.meta.url', JSON.stringify(url.href))
   .replace('main().catch', 'globalThis.done = main().catch');
-async function cli(args: string[], options: { clients?: number; last?: number; failCapture?: boolean; failToast?: boolean; browser?: string } = {}) {
+async function cli(args: string[], options: { clients?: number; last?: number; failCapture?: boolean; failToast?: boolean; browser?: string; home?: string } = {}) {
   const files = new Map<string, string>();
   const stamp = '/virtual/.local/state/mermaid-peek/viewer-launched';
   if (options.last !== undefined) files.set(stamp, String(options.last));
@@ -27,7 +29,7 @@ async function cli(args: string[], options: { clients?: number; last?: number; f
   let closed = false;
   const context = {
     process: proc, console: { log: (s: string) => output.push(s), error: (s: string) => output.push(s) },
-    join, fileURLToPath, URL, homedir: () => '/virtual', absoluteLine, reanchor, findBlocks, latestBlock, pickBlock,
+    join, fileURLToPath, URL, homedir: () => options.home ?? '/virtual', absoluteLine, reanchor, findBlocks, latestBlock, pickBlock,
     mkdir: async () => {}, appendFile: async (p: string, s: string) => { files.set(p, (files.get(p) ?? '') + s); },
     readFile: async (p: string) => { if (!files.has(p)) throw Object.assign(new Error('missing'), { code: 'ENOENT' }); return files.get(p); },
     writeFile: async (p: string, s: string) => { files.set(p, s); }, unlink: async (p: string) => { files.delete(p); },
@@ -46,6 +48,9 @@ async function cli(args: string[], options: { clients?: number; last?: number; f
     startServer: async () => ({ close: async () => { closed = true; } }),
     done: Promise.resolve(),
   };
+  if (options.home) Object.assign(context, {
+    mkdir: fs.mkdir, appendFile: fs.appendFile, readFile: fs.readFile, writeFile: fs.writeFile, unlink: fs.unlink,
+  });
   runInNewContext(code, context);
   await context.done;
   return { files, toasts, output, launches, proc, signals, closed: () => closed };
@@ -117,5 +122,32 @@ test('install-tmux shell-escapes mouse text and preserves empty sixth argument',
     assert.deepEqual(argv, ['click', '%1', '1', '', '0', '20', mouseLine]);
     const clicked = await cli(argv, { clients: 1 });
     assert.match(clicked.toasts[0], /line 2 → viewer$/);
+  }
+});
+
+test('viewer merges missing preferences in a temporary HOME without overwriting existing keys', async () => {
+  const home = await fs.mkdtemp(join(tmpdir(), 'mermaid-peek-prefs-'));
+  const profile = join(home, '.local/share/mermaid-peek/firefox-profile');
+  const prefsPath = join(profile, 'user.js');
+  const stamp = join(home, '.local/state/mermaid-peek/viewer-launched');
+  await fs.mkdir(profile, { recursive: true });
+  const original = '// retained settings\nuser_pref("browser.startup.page", 3);';
+  await fs.writeFile(prefsPath, original);
+  try {
+    const first = await cli(['open'], { home });
+    assert.equal(first.launches.length, 1);
+    const merged = await fs.readFile(prefsPath, 'utf8');
+    assert.ok(merged.startsWith(original + '\n'));
+    assert.match(merged, /user_pref\("browser.startup.couldRestoreSession.count", -1\);/);
+    assert.equal(merged.match(/user_pref\("browser.startup.page",/g)?.length, 1);
+    assert.match(merged, /user_pref\("browser.aboutwelcome.enabled", false\);/);
+    await fs.unlink(stamp);
+    await cli(['open'], { home });
+    assert.equal(await fs.readFile(prefsPath, 'utf8'), merged);
+  } finally {
+    await fs.unlink(prefsPath);
+    await fs.unlink(stamp).catch(() => {});
+    for (const dir of [profile, join(home, '.local/share/mermaid-peek'), join(home, '.local/share'),
+      join(home, '.local/state/mermaid-peek'), join(home, '.local/state'), join(home, '.local'), home]) await fs.rmdir(dir);
   }
 });

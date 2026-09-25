@@ -106,3 +106,20 @@ test('alignment handles all-space wraps and resynchronizes after changed rows', 
   assert.deepEqual(alignWrapped(['head', 'foo', 'bar', 'tail'], ['head', 'inserted', 'foo', 'bar', 'tail']), [0, 2, 3, 4]);
   assert.deepEqual(alignWrapped(['changed', 'foo', 'bar'], ['old', 'inserted', 'foo', 'bar']), [0, 2, 3]);
 });
+
+test('blank continuation requires flat body and a Mermaid statement', () => {
+  const flat = ['  graph TD', '  A --> B', ''];
+  assert.equal(findBlocks([...flat, '  B --> C'])[0].source, 'graph TD\nA --> B\n\nB --> C');
+  assert.equal(findBlocks([...flat, '  O token é renovado antes de expirar.'])[0].endLine, 1);
+  const deep = ['  graph TD', '      A --> B', ''];
+  for (const next of ['  Prose follows', '  B --> C', '  ┌──']) {
+    assert.equal(findBlocks([...deep, next])[0].endLine, 1);
+  }
+});
+test('raw table borders and column glyphs end whitespace-anchored bodies', () => {
+  for (const line of ['  ┌──', '  ├──', '  │ Item │', '  ┃ Item', '  | Item', '  │']) {
+    for (const gap of [[], ['']]) {
+      assert.equal(findBlocks(['  graph TD', '      A --> B', ...gap, line, '      B --> C'])[0].endLine, 1);
+    }
+  }
+});

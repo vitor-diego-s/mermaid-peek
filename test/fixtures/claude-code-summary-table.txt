@@ -1,0 +1,18 @@
+  What happened while you were out
+
+  mermaid
+  flowchart LR
+      A[VAL-451 brief → codex seat<br/>jose JWKS + ClientAuthGuard + gateway JWT] --> B[#8 merged · dev 11ecca7]
+      B --> C{e2e: hostId = web uuid?}
+      C -->|"NO: web uses Hydra sub,<br/>/v3/me is another id"| D[#10 IDENTITY_SOURCE=hydra-sub<br/>merged · dev d5fa414]
+      D --> E[Argo d5fa414 · e2e 22/22<br/>curl: hostId = sub = web]
+      P[#9 by pauloo27: hostnames lose -v2<br/>spaces.mblivre.dev = EKS dev] --> F[Vercel Preview dev →
+  spaces.mblivre.dev<br/>redeploy · web smoke green]
+      E --> G[VAL-451 comment c1d0d309 · In Review]
+
+  ┌───────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │     Item      │                                                    State                                                     │
+  ├───────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ spaces-api    │ 5ce4388 (= d5fa414 code + ledger); Argo synced; pod 0 restarts                                               │
+  │ dev           │                                                                                                              │
+  ├───────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────┤

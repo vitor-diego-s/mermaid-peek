@@ -52,13 +52,19 @@ async function openViewer() {
     'datareporting.policy.dataSubmissionPolicyBypassNotification': true,
     'browser.sessionstore.resume_from_crash': false,
     'browser.startup.page': 0,
+    'browser.startup.couldRestoreSession.count': -1,
     'browser.tabs.warnOnClose': false,
     'browser.aboutConfig.showWarning': false,
     'toolkit.telemetry.reportingpolicy.firstRun': false,
   };
-  try {
-    await writeFile(join(profile, 'user.js'), Object.entries(prefs).map(([key, value]) => `user_pref(${JSON.stringify(key)}, ${JSON.stringify(value)});`).join('\n') + '\n', { flag: 'wx' });
-  } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; }
+  const prefsPath = join(profile, 'user.js');
+  let existing = '';
+  try { existing = await readFile(prefsPath, 'utf8'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+  const keys = new Set([...existing.matchAll(/^\s*user_pref\(\s*['"]([^'"]+)['"]\s*,/gm)].map(match => match[1]));
+  const missing = Object.entries(prefs).filter(([key]) => !keys.has(key))
+    .map(([key, value]) => `user_pref(${JSON.stringify(key)}, ${JSON.stringify(value)});`);
+  if (missing.length) await appendFile(prefsPath, (existing && !existing.endsWith('\n') ? '\n' : '') + missing.join('\n') + '\n');
   const browser = process.env.MERMAID_PEEK_BROWSER?.trim().split(/\s+/) ?? ['firefox', '--profile', profile, '--new-window'];
   await launch(browser[0], [...browser.slice(1), `http://127.0.0.1:${port}/`]);
 }

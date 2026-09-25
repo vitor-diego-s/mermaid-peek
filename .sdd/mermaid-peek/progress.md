@@ -93,3 +93,20 @@
 - gates run + result: reviewer reproduced npm test 27/27, tsc 0; regression ADDRESSED (cli.ts:83/88, binding at cli.ts:120 == README:41); generated binding sourced into a private server parses intact, empty value expands to `''`, payload to one escaped word, no file created, no pane mode
 - verdict: SHIP. Review loop closed after 4 rounds (cap 5)
 - rulings: deferred minors carried as follow-ups — `open` silently honours the 10 s throttle; ENOENT on pid unlink at exit; `q:` leaves a leading `~` unescaped (no execution); 413 path destroys the socket; two first clicks can race two daemons (second exits on EADDRINUSE). Manual gate T7 (Alt+click in a live Claude Code pane) is Vitor's
+
+## 2026-09-25 14:50 — T7 manual gate (Vitor) → live bug → fix round 4
+
+- seat / session id: Vitor (Alt+click in a live Claude Code pane) → codex exec resume 01a0d95f-90e9-7491-ba0a-b6f94a3e5334
+- what happened: trigger chain works end to end (Alt+click reaches tmux, daemon auto-started, Firefox viewer opened, two diagrams in history). The extracted source overran into the box-drawing table Claude Code printed after the diagram → mermaid "Lexical error on line 21" at the `┌───` row. Root cause from the real pane (%1, width 133): Claude Code prints the keyword line at the label indent (2) and the body at 6; after a blank line the table and prose sit at width 2 == anchor width, so the C2 equal-width continuation kept the `┌` row and the `│` rows were read as gutters. Same capture also shows a third soft-wrap form: continuation at the label indent (2), shallower than the body
+- what changed: new real-pane fixture test/fixtures/claude-code-summary-table.{txt,expected.mmd} (orchestrator); codex asked to (1) end the block at any line starting with a box-drawing char or column glyph when the anchor has no gutter, (2) allow equal-width continuation after a blank only for flat blocks whose next line looks like a mermaid statement, (3) add the Firefox pref that hides the "Open previous tabs?" bar and merge missing prefs into an existing user.js
+- gates run + result: pending
+- verdict: pending
+- rulings: the C2 equal-width rule as written in round 1 was wrong for Claude Code's actual rendering; the reviewer's earlier caution about it stands
+
+## 2026-09-25 14:55 — T4 review of fix round 4 (live bug)
+
+- seat / session id: Claude subagent "reviewer" (Opus)
+- what changed: nothing (review only)
+- gates run + result: reviewer reproduced npm test 31/31, tsc 0; every round 1-3 probe still gives the same output (no regression)
+- verdict: SHIP. Found two Important follow-ups in the new heuristic, both scoped to diagrams whose body sits flush with the anchor width (the user's live pane's shape): false positives (flat body + blank + prose containing `:`/`(`/`[` or a lowercase keyword gets swallowed) and false negatives (flat body + blank + a real statement the arrow/keyword regex misses, e.g. `Animal <|-- Duck`, `activate B`, `dateFormat`)
+- rulings: review loop is at its 5-round cap. Given both gaps sit exactly in the shape that just broke live, apply two targeted fixes now (widen the statement regex/keywords; add a viewer render-retry that trims trailing blank-separated lines on a mermaid parse error) and self-verify, rather than open a 6th adversarial round. Recorded as an orchestrator ruling per the harness's "adjudicate after round 5" rule
