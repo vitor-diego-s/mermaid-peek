@@ -20,8 +20,8 @@ function anchor(content: string): string | undefined {
 }
 function statement(content: string): boolean {
   return !content.endsWith('.') && (
-    /-->|---|-\.->|==>|->>|-->>|-\.-|:|\[|\(|\{/.test(content) ||
-    /^(?:(?:subgraph|end|participant|actor|note|loop|alt|else|opt|par|critical|break|rect|state|class|click|style|classDef|linkStyle|direction|section|title)\b|%%|\[\*\])/.test(content));
+    /--|==|~~~|\.\.|->|-x|-\)|:|\[|\(|\{/.test(content) ||
+    /^(?:(?:subgraph|end|participant|actor|note|loop|alt|else|opt|par|critical|break|rect|state|class|click|style|classDef|linkStyle|direction|section|title|activate|deactivate|autonumber|dateFormat|axisFormat|excludes|todayMarker|accTitle|accDescr)\b|%%|\[\*\])/.test(content));
 }
 export function findBlocks(lines: string[]): Block[] {
   const parsed = lines.map(split);

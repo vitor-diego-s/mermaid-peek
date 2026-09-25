@@ -72,8 +72,24 @@ function show(d) {
   queue = queue.then(async () => {
     if (version !== serial) return;
     drawing.replaceChildren(); errors.replaceChildren(); errors.hidden = true;
+    let originalError;
+    const chunks = d.source.split(/\n\s*\n/);
+    let attempt = 0;
     try {
-      const { svg } = await mermaid.render(`diagram-${version}`, d.source, stage);
+      let svg;
+      while (true) {
+        if (version !== serial) return;
+        try {
+          ({ svg } = await mermaid.render(`diagram-${version}-${attempt}`, attempt === 0 ? d.source : chunks.join('\n\n'), stage));
+          break;
+        } catch (error) {
+          if (attempt === 0) originalError = error;
+          if (version !== serial) return;
+          if (chunks.length <= 1) throw originalError;
+          chunks.pop(); ++attempt;
+          stage.replaceChildren();
+        }
+      }
       if (version !== serial) return;
       drawing.innerHTML = svg;
       const element = drawing.querySelector('svg');

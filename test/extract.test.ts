@@ -123,3 +123,18 @@ test('raw table borders and column glyphs end whitespace-anchored bodies', () =>
     }
   }
 });
+
+test('flat blocks retain additional Mermaid statements after blanks', () => {
+  for (const [type, first, next] of [
+    ['classDiagram', 'class Animal', 'Animal <|-- Duck'],
+    ['flowchart LR', 'A --> B', 'B === C'],
+    ['flowchart LR', 'A --> C', 'C ~~~ D'],
+    ['sequenceDiagram', 'A->>B: hello', 'activate B'],
+    ['gantt', 'title Schedule', 'dateFormat YYYY-MM-DD'],
+  ]) {
+    const source = `${type}\n${first}\n\n${next}`;
+    const blocks = findBlocks(source.split('\n').map(line => line ? '  ' + line : ''));
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].source, source);
+  }
+});

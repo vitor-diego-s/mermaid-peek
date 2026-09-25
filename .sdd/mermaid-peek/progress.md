@@ -110,3 +110,11 @@
 - gates run + result: reviewer reproduced npm test 31/31, tsc 0; every round 1-3 probe still gives the same output (no regression)
 - verdict: SHIP. Found two Important follow-ups in the new heuristic, both scoped to diagrams whose body sits flush with the anchor width (the user's live pane's shape): false positives (flat body + blank + prose containing `:`/`(`/`[` or a lowercase keyword gets swallowed) and false negatives (flat body + blank + a real statement the arrow/keyword regex misses, e.g. `Animal <|-- Duck`, `activate B`, `dateFormat`)
 - rulings: review loop is at its 5-round cap. Given both gaps sit exactly in the shape that just broke live, apply two targeted fixes now (widen the statement regex/keywords; add a viewer render-retry that trims trailing blank-separated lines on a mermaid parse error) and self-verify, rather than open a 6th adversarial round. Recorded as an orchestrator ruling per the harness's "adjudicate after round 5" rule
+
+## 2026-09-25 15:05 — T2e/T3e fix round 5 (final, targeted follow-ups)
+
+- seat / session id: codex exec resume 01a0d95f-90e9-7491-ba0a-b6f94a3e5334
+- what changed: src/extract.ts (statement-shape regex widened: `--`/`==`/`~~~`/`..`/`->`/`-x`/`-)` plus arrow tokens; keywords activate/deactivate/autonumber/dateFormat/axisFormat/excludes/todayMarker/accTitle/accDescr added), test/extract.test.ts (5 new cases: classDiagram inheritance, thick/invisible links, sequence activate, gantt dateFormat), web/index.html (render retries with progressively shorter blank-separated chunks on a mermaid parse error; shows the original error and the full source only if every attempt fails)
+- gates run + result (orchestrator): `npm test` 32/32; `tsc --noEmit` exit 0; all six fixtures (including the real-pane summary-table one) extract unchanged; diffs read line by line, exactly scoped to the two findings
+- verdict: applied and verified without a 6th adversarial review round (round cap reached; see the prior ruling). SHIP
+- rulings: none new
