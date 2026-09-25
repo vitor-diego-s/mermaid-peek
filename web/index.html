@@ -13,9 +13,11 @@ header { height:56px; padding:0 16px; display:flex; align-items:center; gap:16px
 #meta { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 button { color:inherit; background:var(--panel); border:1px solid var(--border); border-radius:5px; padding:8px; cursor:pointer; }
 main { display:flex; height:calc(100dvh - 56px); }
-nav { width:180px; flex-shrink:0; padding:16px; overflow:auto; border-right:1px solid var(--border); }
+nav { width:180px; flex-shrink:0; padding:16px; overflow:auto; border-right:1px solid var(--border); transition:width .15s ease, padding .15s ease; }
+nav[hidden] { display:block; width:0; padding:16px 0; border-right:none; overflow:hidden; }
 nav button { width:100%; margin-bottom:8px; text-align:left; overflow-wrap:anywhere; }
 nav button[aria-current=true] { outline:2px solid #799dff; }
+#toggle-history { flex-shrink:0; }
 #viewport { position:relative; flex:1; overflow:hidden; touch-action:none; cursor:grab; }
 #drawing { position:absolute; left:16px; top:16px; transform-origin:0 0; }
 #drawing svg { max-width:none !important; }
@@ -27,9 +29,9 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; }
 <script src="/mermaid.min.js"></script>
 </head>
 <body>
-<header><strong>Mermaid Peek</strong><span id="meta">Waiting for a diagram</span><button id="copy">Copy source</button></header>
+<header><button id="toggle-history" aria-expanded="true" aria-controls="history" title="Toggle history (h)">‹</button><strong>Mermaid Peek</strong><span id="meta">Waiting for a diagram</span><button id="copy">Copy source</button></header>
 <main><nav id="history" aria-label="Diagram history"></nav><section id="viewport" aria-label="Diagram viewer">
-<div id="drawing"></div><div id="errors" hidden></div><span id="hint">drag · wheel · f fit · 0 reset · [ ] history · c copy</span>
+<div id="drawing"></div><div id="errors" hidden></div><span id="hint">drag · wheel · f fit · 0 reset · [ ] history · h sidebar · c copy</span>
 </section></main>
 <div id="render-stage"></div>
 <script>
@@ -126,6 +128,17 @@ async function copy() {
   catch (error) { meta.textContent = `Copy failed: ${error}`; }
 }
 document.querySelector('#copy').onclick = copy;
+const toggle = document.querySelector('#toggle-history');
+function setHistoryCollapsed(collapsed) {
+  history.hidden = collapsed;
+  toggle.textContent = collapsed ? '›' : '‹';
+  toggle.setAttribute('aria-expanded', String(!collapsed));
+  try { localStorage.setItem('mermaid-peek:history-collapsed', String(collapsed)); } catch {}
+}
+let storedCollapsed = false;
+try { storedCollapsed = localStorage.getItem('mermaid-peek:history-collapsed') === 'true'; } catch {}
+setHistoryCollapsed(storedCollapsed);
+toggle.onclick = () => setHistoryCollapsed(!history.hidden);
 let drag;
 viewport.onpointerdown = event => {
   if (event.button !== 0 || !errors.hidden) return;
@@ -150,6 +163,7 @@ document.onkeydown = event => {
   if (event.key === 'f') fit();
   else if (event.key === '0') reset();
   else if (event.key === 'c') void copy();
+  else if (event.key === 'h') setHistoryCollapsed(!history.hidden);
   else if (event.key === '[' || event.key === ']') {
     const i = diagrams.findIndex(d => d.id === selected?.id);
     show(diagrams[i + (event.key === '[' ? -1 : 1)]);
