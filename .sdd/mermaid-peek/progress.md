@@ -126,3 +126,11 @@
 - gates run + result: `npm test` 32/32, `tsc --noEmit` exit 0, CDP-driven live check: click collapses (width 0px, aria-expanded false, stored "true"), `h` key expands (stored "false")
 - verdict: shipped as v0.1.3
 - rulings: none
+
+## 2026-09-25 16:20 — T6 delivery: GitHub repo + z-gaming sync
+
+- seat / session id: orchestrator
+- what changed: private GitHub repo created (github.com/vitor-diego-s/mermaid-peek, gh CLI, account vitor-diego-s), origin pushed with `main` + tags v0.1.0-v0.1.3; cloned onto z-gaming (darksoul-z390-m-gaming) at ~/Projects/mermaid-peek, `npm install` there (Node 24.1.0)
+- gates run + result: on z-gaming — `npm test` 32/32 pass, `tsc --noEmit` clean, `git status --short` empty
+- verdict: repo versioned and synced to z-gaming, confirmed working on that machine's own Node runtime
+- rulings: none
