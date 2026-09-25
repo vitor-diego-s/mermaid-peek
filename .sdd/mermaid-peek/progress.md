@@ -118,3 +118,11 @@
 - gates run + result (orchestrator): `npm test` 32/32; `tsc --noEmit` exit 0; all six fixtures (including the real-pane summary-table one) extract unchanged; diffs read line by line, exactly scoped to the two findings
 - verdict: applied and verified without a 6th adversarial review round (round cap reached; see the prior ruling). SHIP
 - rulings: none new
+
+## 2026-09-25 16:10 — bounded change: collapsible sidebar
+
+- seat / session id: orchestrator (implemented directly, small well-scoped UI change)
+- what changed: web/index.html — toggle button in the header, `h` key binding, localStorage persistence of collapsed state, CSS transition
+- gates run + result: `npm test` 32/32, `tsc --noEmit` exit 0, CDP-driven live check: click collapses (width 0px, aria-expanded false, stored "true"), `h` key expands (stored "false")
+- verdict: shipped as v0.1.3
+- rulings: none
